@@ -86,14 +86,17 @@ static void printOutLog(void)
 		char car_ret = '\n';
 		char string1[73]="------------------------------------------------------------------------\n";
 		char string2[73]="|                    Tuerendetektor Fehler Logbuch                     |\n";
-		char string3[14]="Kontrolle Nr: ";
-		char string4[12]="\tFehler Nr: ";
+		char string2_1[73]="|                                                                      |\n";
+		char string2_2[73]="|                    Datum: 22.03.2016    FW Version 1.0               |\n";
+		char string3[15]="\tKontrolle Nr: ";
+		char string4[11]="Fehler Nr: ";
 		char string5[13]="\tZeit [min]: ";
 		char string6[17]="\tFehler: Türe zu\n";
 		char string7[20]="\tFehler: Türe offen\n";
 
 		println(&car_ret,sizeof(char));println(&car_ret,sizeof(char));
 		println(string1,sizeof(string1));println(string2,sizeof(string2));
+		println(string2_1,sizeof(string2_1));println(string2_2,sizeof(string2_2));
 		println(string1,sizeof(string1));println(&car_ret,sizeof(char));
 		HAL_FLASH_Unlock();
 		while(*((uint32_t *) address)!=0xFFFFFFFF)
@@ -109,12 +112,14 @@ static void printOutLog(void)
 			contrNr = (uint16_t)(tempData>>16);
 			errCode = (uint32_t)(tempData>>32);
 
-			println(string3,sizeof(string3));
-			printNumber(contrNr);
 			println(string4,sizeof(string4));
 			printNumber(fehlerNr);
 			println(string5,sizeof(string5));
 			printNumber(mins);
+			println(string3,sizeof(string3));
+			printNumber(contrNr);
+
+
 			if(errCode == (uint32_t)(0x00000001)) //== err_should_be_open -> Fehler Türe geschlossen
 			{
 				println(string6,sizeof(string6));

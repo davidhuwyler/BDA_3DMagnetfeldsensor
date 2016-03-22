@@ -509,8 +509,9 @@ static void calcDoorState(void)
 {
 	float mean_z_accel;
 	static uint8_t doorStateLocked = 0;
-	static uint16_t timer1 = 0;
-	static uint16_t timer2 = 0;
+	static uint16_t timer1 = 0;		//Timeout für Kabinen Fahrt
+	static uint16_t timer2 = 0;		//Minimale Türstatus Sperrzeit
+	static uint16_t timer3 = 0;		//Minimale Türstatus EntSperrzeit
 	static TickType_t lastTicks=0;
 
 	if(device_mode == mode_run)
@@ -521,14 +522,20 @@ static void calcDoorState(void)
 		{
 			timer1 = timer1 + (xTaskGetTickCount()-lastTicks);
 			timer2 = timer2 + (xTaskGetTickCount()-lastTicks);
-			lastTicks = xTaskGetTickCount();
-		}
 
+		}
+		else
+		{
+			timer3 = timer3 + (xTaskGetTickCount()-lastTicks);
+		}
+		lastTicks = xTaskGetTickCount();
 
 		getMeanFloatValue(accelBuffer,&mean_z_accel);
 
 		//Türstatus einfrieren, wenn  Aufzug anfährt
-		if(!doorStateLocked && (fabs(mean_z_accel)>=accel_aufzug_runns_threshold))
+		if((timer3>minimalDoorStateLockTime) &&
+			!doorStateLocked &&
+		   (fabs(mean_z_accel)>=accel_aufzug_runns_threshold))
 		{
 			doorStateLocked = 1;
 			timer1 = 0;
@@ -542,8 +549,7 @@ static void calcDoorState(void)
 		   ((fabs(mean_z_accel)>=accel_aufzug_runns_threshold) || timer1>timeoutLockDoorState))	// der Aufzug bremst oder das Lock Timeout erreicht ist
 		{
 			doorStateLocked = 0;
-			timer1 = 0;
-			timer2 = 0;
+			timer3 = 0;
 		}
 
 		//Türstatus aktualisieren, wenn der Status nicht eingefrohren ist.

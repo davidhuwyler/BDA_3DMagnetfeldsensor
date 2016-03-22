@@ -34,7 +34,7 @@
 												//der Aufzug als fahren eingeschätzt wird (mean von 0.5s | 5 Werten)
 
 #define timeoutLockDoorState			5000	//5s Timeout wenn der Türstatus nicht entlockt wird
-#define minimalDoorStateLockTime		1500	//1.5s Minimale Zeit bis die Türe entlockt werden kann
+#define minimalDoorStateLockTime		1000	//1.5s Minimale Zeit bis die Türe entlockt werden kann
 #define timeout_after_accel 			10000 	//10s Zeit bis sich die Aufzugstüre öffnen musss nach einer Beschleunigung
 #define timeout_after_error 			2000 	// 2s Zeit die zwischen zwei Fehlern minimum Vergehen muss
 
