@@ -21,7 +21,7 @@ static void outputResult(magnVec_t *vektor);
 static void vectorAnalyseState(magnVec_t *vektor);
 static void setDynamicFlag(magnVec_t *vektor);
 static uint8_t getDoorstateInPercent(magnVec_t *vektor);
-static void calcDoorState(void);
+static void calcDoorState(drive_cycle_t *drive_cycle);
 static void putVectorInRightBuffer(magnVec_t *vektor);
 static void getAccelWithoutG(void);
 static void bufferChangeRequest(void);
@@ -29,7 +29,7 @@ static void bufferChangeRequest(void);
 device_mode_t device_mode = mode_init;
 door_state_t door_state;
 static uint8_t door_State_percent;			//Türstatus von 0-100% | 0% = Geschlossen    100% = Offen
-
+static drive_cycle_t drive_cycle;
 
 static vectorRingBufHandle *lastVectorsBuffer;
 static vectorRingBufHandle *openBuffer;
@@ -70,6 +70,10 @@ void app_init(void)
 	GPIOC_13.Pull = GPIO_PULLUP;
 	GPIOC_13.Speed = GPIO_SPEED_FREQ_LOW;
 	HAL_GPIO_Init(GPIOC,&GPIOC_13);
+
+
+	// Init der Fahrt Zustandsmaschine
+	drive_cycle = drive_end_S4;
 }
 
 
@@ -86,7 +90,7 @@ void app_run(void)
 	vPortExitCritical();
 	vectorAnalyseState(&vektor);			//Magnetfelfvektor wird analysiert und einem Türstatus zugewiesen
 	putInBuffer(lastVectorsBuffer,vektor);	//Vektor in Ringbuffer speichern
-	calcDoorState();						//Die Globale variable door_State_percent wird unterhalten
+	calcDoorState(&drive_cycle);						//Die Globale variable door_State_percent wird unterhalten
 	outputResult(&vektor);					//Die Resultate werden über LEDs und UART ausgegeben
 	bufferChangeRequest();					//Wenn beide Tasten 2s gedrückt werden -> Buffer Vertauschen
 }
@@ -249,7 +253,7 @@ static void vectorAnalyseState(magnVec_t *vektor)
 			}
 
 			//Init Mode verlassen, wenn die Buffers gefüllt wurden und der Aufzug Fährt
-			if((fabs(mean_z_accel)>=accel_aufzug_runns_threshold) &&										//Aufzug Fährt
+			if((fabs(mean_z_accel)>=accel_aufzug_accel_threshold) &&										//Aufzug Fährt
 			   (closedBuffer->counter >= closedBuffer->size && openBuffer->counter >= openBuffer->size))    //Buffer gefüllt
 			{
 				if(actualVektorIsOpen) //open und closed Buffer vertauschen
@@ -505,51 +509,67 @@ static uint8_t getDoorstateInPercent(magnVec_t *vektor)
 /*
  *
  */
-static void calcDoorState(void)
+static void calcDoorState(drive_cycle_t *driveCycle)
 {
 	float mean_z_accel;
 	static uint8_t doorStateLocked = 0;
-	static uint16_t timer1 = 0;		//Timeout für Kabinen Fahrt
-	static uint16_t timer2 = 0;		//Minimale Türstatus Sperrzeit
-	static uint16_t timer3 = 0;		//Minimale Türstatus EntSperrzeit
+	static uint16_t timer = 0;		//Timeout für Kabinen Fahrt
 	static TickType_t lastTicks=0;
+
+
+	timer = timer + (xTaskGetTickCount()-lastTicks);
+	lastTicks = xTaskGetTickCount();
+	getMeanFloatValue(accelBuffer,&mean_z_accel);
 
 	if(device_mode == mode_run)
 	{
 
-		// Timer1 unterhalten
-		if(doorStateLocked)
+		switch (*driveCycle)
 		{
-			timer1 = timer1 + (xTaskGetTickCount()-lastTicks);
-			timer2 = timer2 + (xTaskGetTickCount()-lastTicks);
-
-		}
-		else
-		{
-			timer3 = timer3 + (xTaskGetTickCount()-lastTicks);
-		}
-		lastTicks = xTaskGetTickCount();
-
-		getMeanFloatValue(accelBuffer,&mean_z_accel);
-
-		//Türstatus einfrieren, wenn  Aufzug anfährt
-		if((timer3>minimalDoorStateLockTime) &&
-			!doorStateLocked &&
-		   (fabs(mean_z_accel)>=accel_aufzug_runns_threshold))
-		{
+		case drive_accel_S1:
 			doorStateLocked = 1;
-			timer1 = 0;
-			timer2 = 0;
 			door_state = cabin_drives;
-		}
-
-		//Türstatus freigeben, wenn...
-		if((timer2>minimalDoorStateLockTime) && 												//die minimale Lockzeit abgelaufen ist und...
-			doorStateLocked	&&   																//der Türstatus im Moment eingefrohren ist und...
-		   ((fabs(mean_z_accel)>=accel_aufzug_runns_threshold) || timer1>timeoutLockDoorState))	// der Aufzug bremst oder das Lock Timeout erreicht ist
-		{
+			if(fabs(mean_z_accel)<=accel_aufzug_no_accel_threshold)
+			{
+				*driveCycle=drive_v_max_S2;
+			}
+			else if(timer>timeoutLockDoorState)
+			{
+				*driveCycle=drive_end_S4;
+			}
+		break;
+		case drive_v_max_S2:
+			doorStateLocked = 1;
+			door_state = cabin_drives;
+			if(fabs(mean_z_accel)>=accel_aufzug_accel_threshold)
+			{
+				*driveCycle=drive_deccel_S3;
+			}
+			else if(timer>timeoutLockDoorState)
+			{
+				*driveCycle=drive_end_S4;
+			}
+		break;
+		case drive_deccel_S3:
+			doorStateLocked = 1;
+			door_state = cabin_drives;
+			if(fabs(mean_z_accel)<=accel_aufzug_no_accel_threshold)
+			{
+				*driveCycle=drive_end_S4;
+			}
+			else if(timer>timeoutLockDoorState)
+			{
+				*driveCycle=drive_end_S4;
+			}
+		break;
+		case drive_end_S4:
 			doorStateLocked = 0;
-			timer3 = 0;
+			timer = 0;
+			if(fabs(mean_z_accel)>=accel_aufzug_accel_threshold)
+			{
+				*driveCycle=drive_accel_S1;
+			}
+		break;
 		}
 
 		//Türstatus aktualisieren, wenn der Status nicht eingefrohren ist.

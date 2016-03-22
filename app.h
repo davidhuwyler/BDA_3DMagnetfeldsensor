@@ -30,8 +30,10 @@
 #define Enable_LIS3MDL 					0		//Welcher Magnetometer wird verwendet?
 #define Enable_LSM303DLHC 				1
 
-#define accel_aufzug_runns_threshold 	0.4     //Welche gemittelte beschleunigung ist nötig, dass
-												//der Aufzug als fahren eingeschätzt wird (mean von 0.5s | 5 Werten)
+#define accel_aufzug_accel_threshold 	0.4     //Welche gemittelte beschleunigung muss überschritten werden
+												//der Aufzug als fahrend eingeschätzt wird (mean von 0.5s | 5 Werten)
+#define accel_aufzug_no_accel_threshold 0.15	//Welche gemittelte beschleunigung muss unterschritten werden
+												//der Aufzug als fahrend eingeschätzt wird (mean von 0.5s | 5 Werten)
 
 #define timeoutLockDoorState			5000	//5s Timeout wenn der Türstatus nicht entlockt wird
 #define minimalDoorStateLockTime		1000	//1.5s Minimale Zeit bis die Türe entlockt werden kann
@@ -53,6 +55,16 @@ typedef enum
 	door_closed,
 	cabin_drives
 }door_state_t;
+
+typedef enum
+{
+	drive_accel_S1,
+	drive_v_max_S2,
+	drive_deccel_S3,
+	drive_end_S4
+}drive_cycle_t;
+
+
 
 void app_init(void);
 

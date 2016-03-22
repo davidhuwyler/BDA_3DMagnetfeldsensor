@@ -229,7 +229,7 @@ static err_door_t controlDoorstate(uint16_t *controllNr)
 
 
 	//Aufzug Fährt?
-	if(fabs(mean_z_accel)>=accel_aufzug_runns_threshold)
+	if(fabs(mean_z_accel)>=accel_aufzug_accel_threshold)
 	{
 		if(accelStoppedSinceLastCall)
 		{
