@@ -10,6 +10,7 @@
 #include "cmsis_os.h"
 #include "app.h"
 #include "i2c_magn.h"
+#include "i2c_accel.h"
 #include "uart.h"
 #include "ringBuffer.h"
 #include "controlTask.h"
@@ -26,6 +27,10 @@ static void putVectorInRightBuffer(magnVec_t *vektor);
 static void getAccelWithoutG(void);
 static void bufferChangeRequest(void);
 
+
+/*
+ * Globale Variablen
+ */
 device_mode_t device_mode = mode_init;
 door_state_t door_state;
 static uint8_t door_State_percent;			//Türstatus von 0-100% | 0% = Geschlossen    100% = Offen
@@ -39,14 +44,16 @@ floatRingBufHandle *accelBuffer;
 floatRingBufHandle *accelOffsetBuffer;
 float z_accel;
 
-
-
 static GPIO_InitTypeDef GPIOB_5;			//LED
 static GPIO_InitTypeDef GPIOC_13;			//Button
 
 extern float z_accel;
 extern floatRingBufHandle *accelBuffer;
 
+
+/*
+ * Initialisierungen
+ */
 void app_init(void)
 {
 	//Init all Ringbuffers
@@ -121,75 +128,75 @@ static void outputResult(magnVec_t *vektor)
 
 		else if(device_mode == mode_run)
 		{
-			char string1[45]="---------------------------------------------";
-			char temp = '\n';
-			println(&temp,sizeof(char));println(&temp,sizeof(char));println(&temp,sizeof(char));
+			uint8_t string1[45]="---------------------------------------------";
+			uint8_t temp = '\n';
+			println(&temp,sizeof(uint8_t));println(&temp,sizeof(uint8_t));println(&temp,sizeof(uint8_t));
 			println(string1,sizeof(string1));
-			println(&temp,sizeof(char));
+			println(&temp,sizeof(uint8_t));
 
 			//wenn türe weniger als 10% offen ist -> Geschlossen
 			if(door_state==door_closed)
 			{
-				char string2[18]="Tuere geschlossen!";
+				uint8_t string2[18]="Tuere geschlossen!";
 				println(string2,sizeof(string2));
-				println(&temp,sizeof(char));
+				println(&temp,sizeof(uint8_t));
 				// TODO LED
 				HAL_GPIO_WritePin(GPIOB,&GPIOB_5,GPIO_PIN_SET);
 			}
 			//wenn türe mehr als 90% offen ist -> Offen
 			else if(door_state==door_open)
 			{
-				char string2[12]="Tuere offen!";
+				uint8_t string2[12]="Tuere offen!";
 				println(string2,sizeof(string2));
-				println(&temp,sizeof(char));
+				println(&temp,sizeof(uint8_t));
 				// TODO LED
 				HAL_GPIO_WritePin(GPIOB,&GPIOB_5,GPIO_PIN_RESET);
 			}
 			else if(door_state==door_moving)
 			{
-				char string2[20]="Tuere in Bewegung...";
+				uint8_t string2[20]="Tuere in Bewegung...";
 				println(string2,sizeof(string2));
-				println(&temp,sizeof(char));
+				println(&temp,sizeof(uint8_t));
 				// TODO LEDs aus
 			}
 			else
 			{
-				char string2[15]="Kabine fährt...";
+				uint8_t string2[15]="Kabine fährt...";
 				println(string2,sizeof(string2));
-				println(&temp,sizeof(char));
+				println(&temp,sizeof(uint8_t));
 				// TODO LEDs aus
 			}
-			char string3[15]="Oeffnung in %: ";
-			char string4[19]="VektorBetrag [uT]: ";
-			char string5[9]="  alpha: ";
-			char string6[8]="  beta: ";
-			char string7[25]="Beschleunigung [dm/s^2]: ";
-			char string8[15]="Status(Debug): ";
+			uint8_t string3[15]="Oeffnung in %: ";
+			uint8_t string4[19]="VektorBetrag [uT]: ";
+			uint8_t string5[9]="  alpha: ";
+			uint8_t string6[8]="  beta: ";
+			uint8_t string7[25]="Beschleunigung [dm/s^2]: ";
+			uint8_t string8[15]="Status(Debug): ";
 
 
 
 			println(string3,sizeof(string3));
 			printNumber(door_State_percent);
-			println(&temp,sizeof(char));
+			println(&temp,sizeof(uint8_t));
 			println(string4,sizeof(string4));
 			printNumber((uint16_t)(lastVectorsBuffer->vectorArray[lastVectorsBuffer->index].value+0.5));
 			println(string5,sizeof(string5));
 			printNumber((uint16_t)(lastVectorsBuffer->vectorArray[lastVectorsBuffer->index].alpha+0.5));
 			println(string6,sizeof(string6));
 			printNumber((int16_t)(lastVectorsBuffer->vectorArray[lastVectorsBuffer->index].beta+0.5));
-			println(&temp,sizeof(char));
+			println(&temp,sizeof(uint8_t));
 
 #if distance_assignment
-			char string9[19]="Komponente[uT]: x: ";
-			char string10[5]="  y: ";
-			char string11[5]="  z: ";
+			uint8_t string9[19]="Komponente[uT]: x: ";
+			uint8_t string10[5]="  y: ";
+			uint8_t string11[5]="  z: ";
 			println(string9,sizeof(string9));
 			printNumber((int16_t)(lastVectorsBuffer->vectorArray[lastVectorsBuffer->index].x_val+0.5));
 			println(string10,sizeof(string10));
 			printNumber((int16_t)(lastVectorsBuffer->vectorArray[lastVectorsBuffer->index].y_val+0.5));
 			println(string11,sizeof(string11));
 			printNumber((int16_t)(lastVectorsBuffer->vectorArray[lastVectorsBuffer->index].z_val+0.5));
-			println(&temp,sizeof(char));
+			println(&temp,sizeof(uint8_t));
 #endif
 			println(string7,sizeof(string7));
 			printNumber(z_accel*10);
@@ -295,6 +302,11 @@ static void vectorAnalyseState(magnVec_t *vektor)
 
 }
 
+/*
+ * Diese Funktion misst die Beschleunigung in Z Richtung und subtrahiert
+ * den Offset durch die Erdanziehungskraft
+ * Der Offset wird immer einmal neu berechnet, wenn die Türe vollständig geöffnet ist.
+ */
 static void getAccelWithoutG(void)
 {
 	static float offset = 0.0;
@@ -348,9 +360,6 @@ static void bufferChangeRequest(void)
 	static uint8_t i = 0;
 	if(i ==40)
 	{
-//		eraseVectorBuffer(closedBuffer);
-//		eraseVectorBuffer(openBuffer);
-		// Buffer Vertauschen
 		magnVec_t *temp;
 		temp = (openBuffer->vectorArray);
 		openBuffer->vectorArray = closedBuffer->vectorArray;
@@ -406,7 +415,10 @@ static void putVectorInRightBuffer(magnVec_t *vektor)
 	}
 }
 
-
+/*
+ * Diese Funktion entscheidet ob der Vektor sich bewegt oder Statisch ist
+ * Dies wird anhand der dynThresholds ausgewertet
+ */
 static void setDynamicFlag(magnVec_t *vektor)
 {
 	int i;
@@ -507,7 +519,9 @@ static uint8_t getDoorstateInPercent(magnVec_t *vektor)
 }
 
 /*
- *
+ * Der Türstatus wird ermittelt. Weiter ist der
+ * Zustandsautomat der Aufzugskabinen Fahrten hier
+ * Implementiert
  */
 static void calcDoorState(drive_cycle_t *driveCycle)
 {

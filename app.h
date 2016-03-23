@@ -16,31 +16,37 @@
 #define value_angle_assignment			0		//Die Zuordnung der Vektoren geschiet über den Betrag und die Winkel
 #define distance_assignment				1		//Die Zuordnung der Vektoren geschiet über den Abstand
 
+#define Enable_LIS3MDL 					0		//Welcher Magnetometer wird verwendet?
+#define Enable_LSM303DLHC 				1
+
+#define FlashLogging 					1		//Soll der ControlTask die Fehler im Flash Loggen?
+
+
+/*
+ * Konstanten:
+ */
 #if value_angle_assignment
 #define dynThreshold_value 				2		//Ab wieviel uT dynamik soll ein Vektor als Stillstehend gelten
 #define dynThreshold_angle 				10		//Ab wieviel ° dynamik soll ein Vektor als Stillstehend gelten
 #endif
 
 #if distance_assignment
-#define dynThreshold_distance 			3		//Ab wieviel uT dynamik soll ein Vektor als Stillstehend gelten
+#define dynThreshold_distance 			1.5		//Ab wieviel uT dynamik soll ein Vektor als Stillstehend gelten
 #endif
-
-#define FlashLogging 					1		//Soll der ControlTask die Fehler im Flash Loggen?
-
-#define Enable_LIS3MDL 					0		//Welcher Magnetometer wird verwendet?
-#define Enable_LSM303DLHC 				1
 
 #define accel_aufzug_accel_threshold 	0.4     //Welche gemittelte beschleunigung muss überschritten werden
 												//der Aufzug als fahrend eingeschätzt wird (mean von 0.5s | 5 Werten)
 #define accel_aufzug_no_accel_threshold 0.15	//Welche gemittelte beschleunigung muss unterschritten werden
 												//der Aufzug als fahrend eingeschätzt wird (mean von 0.5s | 5 Werten)
 
-#define timeoutLockDoorState			5000	//5s Timeout wenn der Türstatus nicht entlockt wird
-#define minimalDoorStateLockTime		1000	//1.5s Minimale Zeit bis die Türe entlockt werden kann
+#define timeoutLockDoorState			10000	//5s Timeout wenn der Türstatus nicht entlockt wird
 #define timeout_after_accel 			10000 	//10s Zeit bis sich die Aufzugstüre öffnen musss nach einer Beschleunigung
 #define timeout_after_error 			2000 	// 2s Zeit die zwischen zwei Fehlern minimum Vergehen muss
 
 
+/*
+ * Enumerations
+ */
 typedef enum
 {
 	mode_init,					//Im init-Mode werden die Ringbuffer openBuffer und closedBuffer gefüllt
@@ -50,18 +56,18 @@ typedef enum
 
 typedef enum
 {
-	door_moving,
-	door_open,
-	door_closed,
-	cabin_drives
+	door_moving,				//Türe in Bewegung
+	door_open,					//Türe offen
+	door_closed,				//Türe geschlossen
+	cabin_drives				//Aufzug fährt
 }door_state_t;
 
 typedef enum
 {
-	drive_accel_S1,
-	drive_v_max_S2,
-	drive_deccel_S3,
-	drive_end_S4
+	drive_accel_S1,				//Zustand S1: beschleunigen
+	drive_v_max_S2,				//Zustand S2: Geschwindigkeit erreicht
+	drive_deccel_S3,			//Zustand S3: bremsen
+	drive_end_S4				//Zustand S4: Fahrt zuende
 }drive_cycle_t;
 
 

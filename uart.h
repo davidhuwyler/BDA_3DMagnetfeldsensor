@@ -15,6 +15,5 @@ void println(uint8_t *pData, uint16_t Size);
 
 void printNumber(int16_t num);
 
-void print3Numbers(int16_t *num);
 
 #endif /* APPLICATION_USER_UART_H_ */

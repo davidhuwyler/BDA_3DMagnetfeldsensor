@@ -27,28 +27,19 @@ static void eraseFlash(void);
 
 
 extern floatRingBufHandle *accelBuffer;
-//floatRingBufHandle *accelOffsetBuffer;
-//extern float z_accel;
 
 extern device_mode_t device_mode;
 extern door_state_t door_state;
 
-#if FlashLogging
-static FLASH_EraseInitTypeDef Flash_Eraser;
-static uint32_t SectorEraseError;
-#endif
-
 void StartControlTask(void const * argument)
 {
-	volatile uint16_t mins;
-	volatile static uint16_t controllNr = 0;
-//	accelBuffer = initfloatBuffer(1);
-//	accelOffsetBuffer = initfloatBuffer(2);
+	uint16_t mins;
+	static uint16_t controllNr;
+	controllNr = 0;
 	for(;;)
 	{
-		volatile err_door_t err_door;
+		err_door_t err_door;
 		mins = getMinFromStartUp();
-//		getAccelWithoutG();
 
 		if(device_mode == mode_init)
 		{
@@ -83,31 +74,32 @@ static void printOutLog(void)
 		HAL_FLASH_Lock();
 		while(FLASH_WaitForLastOperation(1000)!=HAL_OK){}
 		alreadyPrinted = 1;
-		char car_ret = '\n';
-		char string1[73]="------------------------------------------------------------------------\n";
-		char string2[73]="|                    Tuerendetektor Fehler Logbuch                     |\n";
-		char string2_1[73]="|                                                                      |\n";
-		char string2_2[73]="|                    Datum: 22.03.2016    FW Version 1.0               |\n";
-		char string3[15]="\tKontrolle Nr: ";
-		char string4[11]="Fehler Nr: ";
-		char string5[13]="\tZeit [min]: ";
-		char string6[17]="\tFehler: Türe zu\n";
-		char string7[20]="\tFehler: Türe offen\n";
+		uint8_t car_ret = '\n';
+		uint8_t string1[73]="------------------------------------------------------------------------\n";
+		uint8_t string2[73]="|                    Tuerendetektor Fehler Logbuch                     |\n";
+		uint8_t string2_1[73]="|                                                                      |\n";
+		uint8_t string2_2[73]="|                    Datum: 22.03.2016    FW Version 1.0               |\n";
+		uint8_t string3[15]="\tKontrolle Nr: ";
+		uint8_t string4[11]="Fehler Nr: ";
+		uint8_t string5[13]="\tZeit [min]: ";
+		uint8_t string6[17]="\tFehler: Türe zu\n";
+		uint8_t string7[20]="\tFehler: Türe offen\n";
 
-		println(&car_ret,sizeof(char));println(&car_ret,sizeof(char));
+		println(&car_ret,sizeof(uint8_t));println(&car_ret,sizeof(uint8_t));
 		println(string1,sizeof(string1));println(string2,sizeof(string2));
 		println(string2_1,sizeof(string2_1));println(string2_2,sizeof(string2_2));
-		println(string1,sizeof(string1));println(&car_ret,sizeof(char));
+		println(string1,sizeof(string1));println(&car_ret,sizeof(uint8_t));
 		HAL_FLASH_Unlock();
 		while(*((uint32_t *) address)!=0xFFFFFFFF)
 		{
 			HAL_FLASH_Lock();
 			uint64_t tempData;
 			uint16_t mins, contrNr, errCode;
-
 			HAL_FLASH_Unlock();
 			tempData = *((uint64_t *) address);
 			HAL_FLASH_Lock();
+
+
 			mins = (uint16_t)tempData;
 			contrNr = (uint16_t)(tempData>>16);
 			errCode = (uint32_t)(tempData>>32);
@@ -128,20 +120,24 @@ static void printOutLog(void)
 			{
 				println(string7,sizeof(string7));
 			}
+
+
 			address = address +8;
 			fehlerNr++;
 			HAL_FLASH_Unlock();
 		}
 		HAL_FLASH_Lock();
 
-		println(&car_ret,sizeof(char));println(&car_ret,sizeof(char));
-		char string10[28]="Press Button1 to Erase Flash\n";
+		println(&car_ret,sizeof(uint8_t));println(&car_ret,sizeof(uint8_t));
+		uint8_t string10[29]="Press Button1 to Erase Flash\n";
 		println(string10,sizeof(string10));
+
 		vPortEnterCritical();
 		//TODO alle LEDs anzünden!
 		while(HAL_GPIO_ReadPin(GPIOC,GPIO_PIN_13)){}
-		vPortExitCritical();
 		eraseFlash();
+		//TODO alle LEDs auslöschen!
+		vPortExitCritical();
 
 	}
 
@@ -176,8 +172,9 @@ static void writeToFlash(uint16_t *minsSinceStartUp, uint16_t *controllNr, err_d
 
 static void eraseFlash(void)
 {
-	vPortEnterCritical();
 
+	FLASH_EraseInitTypeDef Flash_Eraser;
+	uint32_t SectorEraseError;
 	Flash_Eraser.TypeErase = FLASH_TYPEERASE_SECTORS;
 	Flash_Eraser.Banks = FLASH_BANK_1;
 	Flash_Eraser.VoltageRange = FLASH_VOLTAGE_RANGE_3; 	//2.7 - 3.6 V
@@ -188,7 +185,7 @@ static void eraseFlash(void)
 
 	while(SectorEraseError!=0xFFFFFFFFU){}
 	HAL_FLASH_Lock();
-	vPortExitCritical();
+
 }
 
 

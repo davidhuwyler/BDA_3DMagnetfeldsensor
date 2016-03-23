@@ -115,7 +115,6 @@ float getMeanZ(vectorRingBufHandle *buf_handle)
 void eraseVectorBuffer(vectorRingBufHandle *buf_handle)
 {
 	int i;
-	float temp = 0;
 	for(i=0;i<buf_handle->size;i++)
 	{
 #if distance_assignment
@@ -161,7 +160,7 @@ void getMeanFloatValue(floatRingBufHandle *buf_Float_handle, float *result)
 {
 	vPortEnterCritical();
 	int i;
-	float temp = 0, temp2;
+	float temp = 0;
 	for(i=0;i<buf_Float_handle->size;i++)
 	{
 		temp = temp+buf_Float_handle->floatArray[i];

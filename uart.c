@@ -43,19 +43,7 @@ void printNumber(int16_t num)
 	else if(num<10000000 && num>-1000000){size = 7;}
 	else {size = 8;}
 
-	itoa(num,buf,10);
+	itoa(num,(char *)buf,10);
 	HAL_UART_Transmit(uartHandle, buf, size, 1000);
-}
-
-void print3Numbers(int16_t *num)
-{
-	printNumber(num[0]);
-	HAL_UART_Transmit(uartHandle, ("\t"), 1, 1000);
-
-	printNumber(num[1]);
-	HAL_UART_Transmit(uartHandle, ("\t"), 1, 1000);
-
-	printNumber(num[2]);
-	HAL_UART_Transmit(uartHandle, ("\n"), 1, 1000);
 }
 

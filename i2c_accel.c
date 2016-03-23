@@ -32,7 +32,7 @@ void get_accel(float *zValue)
 {
 	uint8_t buf;
 	uint8_t zl;
-	int8_t zh;
+	uint8_t zh;
 	volatile HAL_StatusTypeDef error;
 
 	buf = 0x2C;						//Low Byte des Z-Anteils Abfragen
