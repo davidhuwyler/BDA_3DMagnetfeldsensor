@@ -13,13 +13,17 @@
 /*
  * Konfiguratonen:
  */
-#define value_angle_assignment			0		//Die Zuordnung der Vektoren geschiet über den Betrag und die Winkel
-#define distance_assignment				1		//Die Zuordnung der Vektoren geschiet über den Abstand
+#define value_angle_assignment			0		//Die Zuordnung der Vektoren geschieht über den Betrag und die Winkel
+#define distance_assignment				1		//Die Zuordnung der Vektoren geschieht über den Abstand
 
 #define Enable_LIS3MDL 					0		//Welcher Magnetometer wird verwendet?
 #define Enable_LSM303DLHC 				1
 
+#define EnableControlTask				1
 #define FlashLogging 					1		//Soll der ControlTask die Fehler im Flash Loggen?
+#define EnableTimeMeasure				1		//Aktivierung der Zeitmessung der Türbewegungnen
+#define EnableUART_Output				1
+#define EnableLED_Output				1
 
 
 /*
@@ -62,7 +66,7 @@ typedef enum
 	cabin_drives				//Aufzug fährt
 }door_state_t;
 
-typedef enum
+typedef enum					//Türstatus Zustandsautomat
 {
 	drive_accel_S1,				//Zustand S1: beschleunigen
 	drive_v_max_S2,				//Zustand S2: Geschwindigkeit erreicht
@@ -70,7 +74,14 @@ typedef enum
 	drive_end_S4				//Zustand S4: Fahrt zuende
 }drive_cycle_t;
 
-
+typedef enum					//Zeitmessungs Zustandsautomat
+{
+	time_ready_S1,				//Zustand S1: Bereit für die Neue Messung
+	time_moving_S2,				//Zustand S2: Türe in Bewegung
+	time_stillMoving_S3,		//Zustand S3: Türe noch immer in Bewegung
+	time_open_S4,				//Zustand S4: Türe offen
+	time_closed_S5				//Zustand S5: Türe geschlossen
+}time_measure_t;
 
 void app_init(void);
 

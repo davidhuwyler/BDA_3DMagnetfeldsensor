@@ -26,6 +26,7 @@ static void calcDoorState(drive_cycle_t *drive_cycle);
 static void putVectorInRightBuffer(magnVec_t *vektor);
 static void getAccelWithoutG(void);
 static void bufferChangeRequest(void);
+static void measureMovementTime(magnVec_t *vektor);
 
 
 /*
@@ -44,12 +45,20 @@ floatRingBufHandle *accelBuffer;
 floatRingBufHandle *accelOffsetBuffer;
 float z_accel;
 
+#if EnableLED_Output
 static GPIO_InitTypeDef GPIOB_5;			//LED
+#endif
 static GPIO_InitTypeDef GPIOC_13;			//Button
+
 
 extern float z_accel;
 extern floatRingBufHandle *accelBuffer;
 
+
+static uint16_t time_door_OtoC;				//Zeit welche die Türe braucht um zu schliessen
+static uint16_t time_door_CtoO;				//Zeit welche die Türe braucht um zu öffnen
+static uint16_t meanTime_door_OtoC;			//Zeit welche die Türe braucht um zu schliessen über 1000 Werte gemittelt
+static uint16_t meanTime_door_CtoO;			//Zeit welche die Türe braucht um zu öffnen über 1000 Werte gemittelt
 
 /*
  * Initialisierungen
@@ -63,13 +72,13 @@ void app_init(void)
 	accelBuffer = initfloatBuffer(1);			//Ringbuffer mit den letzten Beschleunigungswerten
 	accelOffsetBuffer = initfloatBuffer(2);		//Ringbuffer werlcher benutzt wird um den Beschleunigungsoffset zu ermitteln
 
-
+#if EnableLED_Output
 	//Init GPIO for LEDs
 	GPIOB_5.Pin =  GPIO_PIN_5;
 	GPIOB_5.Mode = GPIO_MODE_OUTPUT_PP;
 	GPIOB_5.Pull = GPIO_PULLDOWN;
 	HAL_GPIO_Init(GPIOB,&GPIOB_5);
-
+#endif
 
 	//Init GPIO for Buttons
 	GPIOC_13.Pin = GPIO_PIN_13;
@@ -97,7 +106,8 @@ void app_run(void)
 	vPortExitCritical();
 	vectorAnalyseState(&vektor);			//Magnetfelfvektor wird analysiert und einem Türstatus zugewiesen
 	putInBuffer(lastVectorsBuffer,vektor);	//Vektor in Ringbuffer speichern
-	calcDoorState(&drive_cycle);						//Die Globale variable door_State_percent wird unterhalten
+	calcDoorState(&drive_cycle);			//Die Globale variable door_State_percent wird unterhalten
+	measureMovementTime(&vektor);			//Die Zeiten um die Türe zu öffnen und zu schliessen werden gemessen
 	outputResult(&vektor);					//Die Resultate werden über LEDs und UART ausgegeben
 	bufferChangeRequest();					//Wenn beide Tasten 2s gedrückt werden -> Buffer Vertauschen
 }
@@ -114,66 +124,83 @@ static void outputResult(magnVec_t *vektor)
 
 	if(vektor->state == vek_dynamic || device_mode == mode_waitForDrive)
 	{
+		#if EnableLED_Output
 		HAL_GPIO_TogglePin(GPIOB,&GPIOB_5);
+		#endif
 	}
 
 	if(i==5)		//Nur jeder 5te Aufruf die Ausgabe Tätigen
 	{
-		vPortEnterCritical();
+		//vPortEnterCritical();
 		if(device_mode == mode_init)
 		{
 			// TODO LEDs blink!!!
+			#if EnableLED_Output
 			HAL_GPIO_TogglePin(GPIOB,&GPIOB_5);
+			#endif
 		}
 
 		else if(device_mode == mode_run)
 		{
+			#if EnableUART_Output
 			uint8_t string1[45]="---------------------------------------------";
 			uint8_t temp = '\n';
 			println(&temp,sizeof(uint8_t));println(&temp,sizeof(uint8_t));println(&temp,sizeof(uint8_t));
 			println(string1,sizeof(string1));
 			println(&temp,sizeof(uint8_t));
-
+			#endif
 			//wenn türe weniger als 10% offen ist -> Geschlossen
 			if(door_state==door_closed)
 			{
+				#if EnableUART_Output
 				uint8_t string2[18]="Tuere geschlossen!";
 				println(string2,sizeof(string2));
 				println(&temp,sizeof(uint8_t));
+				#endif
 				// TODO LED
+				#if EnableLED_Output
 				HAL_GPIO_WritePin(GPIOB,&GPIOB_5,GPIO_PIN_SET);
+				#endif
 			}
 			//wenn türe mehr als 90% offen ist -> Offen
 			else if(door_state==door_open)
 			{
+				#if EnableUART_Output
 				uint8_t string2[12]="Tuere offen!";
 				println(string2,sizeof(string2));
 				println(&temp,sizeof(uint8_t));
+				#endif
 				// TODO LED
+				#if EnableLED_Output
 				HAL_GPIO_WritePin(GPIOB,&GPIOB_5,GPIO_PIN_RESET);
+				#endif
 			}
 			else if(door_state==door_moving)
 			{
+				#if EnableUART_Output
 				uint8_t string2[20]="Tuere in Bewegung...";
 				println(string2,sizeof(string2));
 				println(&temp,sizeof(uint8_t));
+				#endif
 				// TODO LEDs aus
 			}
 			else
 			{
+				#if EnableUART_Output
 				uint8_t string2[15]="Kabine fährt...";
 				println(string2,sizeof(string2));
 				println(&temp,sizeof(uint8_t));
+				#endif
 				// TODO LEDs aus
 			}
+
+			#if EnableUART_Output
 			uint8_t string3[15]="Oeffnung in %: ";
 			uint8_t string4[19]="VektorBetrag [uT]: ";
 			uint8_t string5[9]="  alpha: ";
 			uint8_t string6[8]="  beta: ";
 			uint8_t string7[25]="Beschleunigung [dm/s^2]: ";
 			uint8_t string8[15]="Status(Debug): ";
-
-
 
 			println(string3,sizeof(string3));
 			printNumber(door_State_percent);
@@ -204,10 +231,30 @@ static void outputResult(magnVec_t *vektor)
 			println(string8,sizeof(string8));
 			printNumber(lastVectorsBuffer->vectorArray[lastVectorsBuffer->index].state);
 			println(&temp,sizeof(char));
+
+#if EnableTimeMeasure
+			println(&temp,sizeof(char));
+			uint8_t stringT1[30]="Zeitmessung der Tuerbewegung:\n";
+		    uint8_t stringT2[18]="Closed->Open[ms]: ";
+			uint8_t stringT3[19]="\tOpen->Closed[ms]: ";
+			uint8_t stringT4[18]="Mean_C->O[ms]:    ";
+			uint8_t stringT5[19]="\tMean_O->C[ms]:    ";
+			println(stringT1,sizeof(stringT1));
+			println(stringT2,sizeof(stringT2));
+			printNumber(time_door_CtoO);
+			println(stringT3,sizeof(stringT3));
+			printNumber(time_door_OtoC);println(&temp,sizeof(char));
+			println(stringT4,sizeof(stringT4));
+			printNumber(meanTime_door_CtoO);
+			println(stringT5,sizeof(stringT5));
+			printNumber(meanTime_door_OtoC);
+			println(&temp,sizeof(char));
+#endif
 			println(string1,sizeof(string1));
+			#endif
 		}
 		i = 0;
-		vPortExitCritical();
+		//vPortExitCritical();
 	}
 	else
 	{
@@ -217,7 +264,9 @@ static void outputResult(magnVec_t *vektor)
 	//ButtonTest
 	if(!HAL_GPIO_ReadPin(GPIOC,GPIO_PIN_13))
 	{
+		#if EnableLED_Output
 		HAL_GPIO_TogglePin(GPIOB,&GPIOB_5);
+		#endif
 	}
 }
 
@@ -589,11 +638,11 @@ static void calcDoorState(drive_cycle_t *driveCycle)
 		//Türstatus aktualisieren, wenn der Status nicht eingefrohren ist.
 		if(!doorStateLocked)
 		{
-			if(door_State_percent<=10)
+			if(door_State_percent<=5)
 			{
 				door_state = door_closed;
 			}
-			else if(door_State_percent>=90)
+			else if(door_State_percent>=95)
 			{
 				door_state = door_open;
 			}
@@ -603,6 +652,100 @@ static void calcDoorState(drive_cycle_t *driveCycle)
 			}
 		}
 	}
+}
+
+
+static void measureMovementTime(magnVec_t *vektor)
+{
+#if EnableTimeMeasure
+	static uint16_t counter_OtoC = 0;		//Anzahl Messungen von Offen --> Geschlossen
+	static uint16_t counter_CtoO = 0;		//Anzahl Messungen von Geschlossen --> Offen
+	static time_measure_t timeMeasure;
+	static uint16_t timer = 0;				//Zeitmessung der Türe
+	static TickType_t lastTicks=0;
+	static uint8_t i;						//Zählvariable
+
+	if(device_mode == mode_run)
+	{
+
+		switch (timeMeasure)
+		{
+		case time_ready_S1:
+			timer = 0;
+			if(door_state == door_moving)
+			{
+				timeMeasure = time_moving_S2;
+				lastTicks = xTaskGetTickCount();
+				i = 0;
+			}
+		break;
+		case time_moving_S2:
+			if(door_state == door_moving)
+			{
+				i++;
+			}
+			if(i==4)
+			{
+				timeMeasure = time_stillMoving_S3;
+			}
+			if(door_state != door_moving)
+			{
+				timeMeasure = time_ready_S1;
+			}
+		break;
+		case time_stillMoving_S3:
+			if(door_state == door_open)
+			{
+				timeMeasure = time_open_S4;
+				timer =(xTaskGetTickCount()-lastTicks);
+				i = 0;
+			}
+			if(door_state == door_closed)
+			{
+				timeMeasure = time_closed_S5;
+				timer =(xTaskGetTickCount()-lastTicks);
+				i = 0;
+			}
+		break;
+		case time_open_S4:
+			if(door_state == door_open)
+			{
+				i++;
+			}
+			if(i==4)
+			{
+				time_door_CtoO = timer;
+				meanTime_door_CtoO = ((meanTime_door_CtoO*counter_CtoO)+time_door_CtoO)/(counter_CtoO+1);
+				counter_CtoO ++;
+				if(counter_CtoO>1000){counter_CtoO=1000;};
+				timeMeasure = time_ready_S1;
+			}
+			if(door_state != door_open)
+			{
+				timeMeasure = time_ready_S1;
+			}
+		break;
+		case time_closed_S5:
+			if(door_state == door_closed)
+			{
+				i++;
+			}
+			if(i==4)
+			{
+				time_door_OtoC = timer;
+				meanTime_door_OtoC = ((meanTime_door_OtoC*counter_OtoC)+time_door_OtoC)/(counter_OtoC+1);
+				counter_OtoC ++;
+				if(counter_OtoC>1000){counter_OtoC=1000;};
+				timeMeasure = time_ready_S1;
+			}
+			if(door_state != door_closed)
+			{
+				timeMeasure = time_ready_S1;
+			}
+		break;
+		}
+	}
+#endif
 }
 
 /*

@@ -23,8 +23,6 @@ void init_uart(UART_HandleTypeDef *huart)
 
 void println(uint8_t *pData, uint16_t Size)
 {
-
-	//UART_WaitOnFlagUntilTimeout(uartHandle,UART_FLAG_LBD);
 	vPortEnterCritical();
 	HAL_UART_Transmit(uartHandle, pData, Size, 1000);
 	vPortExitCritical();
@@ -32,6 +30,7 @@ void println(uint8_t *pData, uint16_t Size)
 
 void printNumber(int16_t num)
 {
+	vPortEnterCritical();
 	uint8_t buf[8];
 	uint8_t size;
 	if(num<10 && num>-1){size = 1;}
@@ -45,5 +44,6 @@ void printNumber(int16_t num)
 
 	itoa(num,(char *)buf,10);
 	HAL_UART_Transmit(uartHandle, buf, size, 1000);
+	vPortExitCritical();
 }
 
