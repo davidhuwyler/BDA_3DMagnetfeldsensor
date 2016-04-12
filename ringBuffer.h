@@ -16,7 +16,13 @@
 #define bufSize4 5		//Max Anzahl floats im Buffer (accel)
 #define bufSize5 5		//Max Anzahl floats im Buffer (accel_offset)
 
+#if defined STM32F401xE || STM32F4051xE
 #include "stm32f4xx_hal.h"
+#endif
+#if defined STM32L476xx
+#include "stm32l4xx_hal.h"
+#endif
+
 #include "i2c_magn.h"
 
 typedef struct

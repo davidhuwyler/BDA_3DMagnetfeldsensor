@@ -19,12 +19,13 @@
 #define Enable_LIS3MDL 					0		//Welcher Magnetometer wird verwendet?
 #define Enable_LSM303DLHC 				1
 
+
 #define EnableControlTask				1
 #define FlashLogging 					1		//Soll der ControlTask die Fehler im Flash Loggen?
 #define EnableTimeMeasure				1		//Aktivierung der Zeitmessung der Türbewegungnen
-#define EnableUART_Output				1
+#define EnableUART_Output				0
 #define EnableLED_Output				1
-
+#define EnableLCD						0
 
 /*
  * Konstanten:
@@ -35,17 +36,49 @@
 #endif
 
 #if distance_assignment
-#define dynThreshold_distance 			1.5		//Ab wieviel uT dynamik soll ein Vektor als Stillstehend gelten
+#define dynThreshold_distance 			2		//Ab wieviel uT dynamik soll ein Vektor als Stillstehend gelten
 #endif
 
-#define accel_aufzug_accel_threshold 	0.4     //Welche gemittelte beschleunigung muss überschritten werden
+#define accel_aufzug_accel_threshold 	0.3     //Welche gemittelte beschleunigung muss überschritten werden
 												//der Aufzug als fahrend eingeschätzt wird (mean von 0.5s | 5 Werten)
 #define accel_aufzug_no_accel_threshold 0.15	//Welche gemittelte beschleunigung muss unterschritten werden
 												//der Aufzug als fahrend eingeschätzt wird (mean von 0.5s | 5 Werten)
+#define accel_aufzug_bigAccel_threshold 1.2     //Welche gemittelte beschleunigung muss überschritten werden
+												//damit der Beschleunigungsfehler errkantt wird (mean von 0.5s | 5 Werten)
 
 #define timeoutLockDoorState			10000	//5s Timeout wenn der Türstatus nicht entlockt wird
 #define timeout_after_accel 			10000 	//10s Zeit bis sich die Aufzugstüre öffnen musss nach einer Beschleunigung
 #define timeout_after_error 			2000 	// 2s Zeit die zwischen zwei Fehlern minimum Vergehen muss
+
+
+
+/*
+ * GPIO
+ */
+//LEDs
+#if defined STM32F401xE
+#define LED_closed GPIO_PIN_5
+#define LED_changing GPIO_PIN_5
+#define LED_open GPIO_PIN_5
+#endif
+#if defined STM32L476xx || STM32F4051xE
+#define LED_closed GPIO_PIN_14
+#define LED_changing GPIO_PIN_13
+#define LED_open GPIO_PIN_12
+#endif
+
+//Buttons
+#if defined STM32F401xE
+#define button_Port GPIOC
+#define button_S1 GPIO_PIN_13
+#define button_S2 GPIO_PIN_1
+#endif
+#if defined STM32L476xx || STM32F4051xE
+#define button_Port GPIOB
+#define button_S1 GPIO_PIN_0
+#define button_S2 GPIO_PIN_1
+#endif
+
 
 
 /*

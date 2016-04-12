@@ -8,7 +8,12 @@
 #ifndef APPLICATION_USER_I2C_MAGN_H_
 #define APPLICATION_USER_I2C_MAGN_H_
 
+#if defined STM32F401xE || STM32F4051xE
 #include "stm32f4xx_hal.h"
+#endif
+#if defined STM32L476xx
+#include "stm32l4xx_hal.h"
+#endif
 #include "app.h"
 
 typedef enum

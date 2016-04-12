@@ -5,7 +5,12 @@
  *      Author: xxdav
  */
 
+#if defined STM32F401xE || STM32F405xE
 #include "stm32f4xx_hal.h"
+#endif
+#if defined STM32L476xx
+#include "stm32l4xx_hal.h"
+#endif
 #include "cmsis_os.h"
 #include "uart.h"
 
